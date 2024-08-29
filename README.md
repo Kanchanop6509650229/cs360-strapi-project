@@ -50,7 +50,7 @@ Strapi เป็นระบบจัดการเนื้อหาแบบ 
 
 ### การเตรียมการก่อนเริ่มการติดตั้ง
 - [NodeJS](https://nodejs.org/en) (เฉพาะ v18 หรือ v20 เท่านั้น)
-- Node.js package manager (สามารถเลือกใช้ได้ตามสะดวก) : [npm](https://docs.npmjs.com/cli/v6/commands/npm-install) (v6 หรือใหม่กว่า)
+- Node.js package manager (สามารถเลือกใช้ได้ตามสะดวก) : [yarn](https://yarnpkg.com/getting-started/install) 
 - [Python](https://www.python.org/downloads/) (หากเลือกใช้ Database เป็น SQLite)
 
 ### เริ่มต้นการสร้างโปรเจกต์
@@ -61,13 +61,12 @@ cd "Path ไปยังโฟลเดอร์"
 
 2. พิมพ์คำสั่งในการติดตั้ง
 ```bash
-npx create-strapi-app@latest ชื่อโปรเจกต์
+yarn create-strapi-app@latest ชื่อโปรเจกต์
 ```
 หรือสามารถติดตั้งตามค่า default ได้ด้วยคำสั่ง
 ```bash
-npx create-strapi-app@latest ชื่อโปรเจกต์ --quickstart
+yarn create-strapi-app@latest ชื่อโปรเจกต์ --quickstart
 ```
-
 
 ## วิธีการรันแอปพลิเคชั่น Strapi Application ด้วย CLI
 1. เปิด command prompt แล้วไปที่ Directory ของโปรเจกต์ที่ได้สร้างไว้
@@ -77,8 +76,119 @@ cd "Path ไปยังโฟลเดอร์"
 
 2. พิมพ์คำสั่ง
 ```bash
-npm run develop
+yarn run develop
 ```
+
+### การ Deploy ลง AWS
+1. สร้าง AWS EC2 Instance
+
+2. ติดตั้ง NodeJS ลงบน EC2
+  - เริ่มการติดตั้ง
+  ```bash
+  cd ~
+  sudo yum update
+  ...
+  sudo yum install -y ca-certificates curl gnupg
+  ...
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  NODE_MAJOR=20
+  sudo yum update
+  ...
+  sudo ym install nodejs -y
+  ...
+  node -v && npm -v
+  ```
+  - สร้างและเปลี่ยน npm default directory
+    - สร้าง .npm-global directory และกำหนดเส้นทาง node_modules ให้มาที่ directory นี้
+    ```bash
+    cd ~
+    mkdir ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    ```
+
+    - แก้ไขไฟล์ .profile
+    ```bash
+    sudo nano ~/.profile
+
+    # ใส่คำสั่งต่อไปนี้ไว้ล่างสุดของไฟล์
+    export PATH=~/.npm-global/bin:$PATH
+    ```
+
+    - อัพเดตข้อมูล
+    ```bash
+    source ~/.profile
+    ```
+
+3. ทำการโคลนโปรเจกต์มาไว้ในเครื่อง EC2
+  - ติดตั้ง pg ไปยังโปรเจกต์(บนเครื่องของเรา)
+  ```bash
+  cd ที่อยู่ของโปรเจกต์บนเครื่อง
+  yarn install pg
+  ```
+
+  - ติดตั้ง Strapi AWS S3 Upload Provider ไปยังโปรเจกต์(บนเครื่องของเรา)
+  ```bash
+  cd ที่อยู่ของโปรเจกต์บนเครื่อง
+  yarn install @strapi/provider-upload-aws-s3
+  ```
+
+  - แก้ไข config ของโปรเจกต์ที่ ./config/plugins.js (บนเครื่องของเรา)
+  ```bash
+  module.exports = ({ env }) => ({
+      upload: {
+        config: {
+          provider: 'aws-s3',
+          providerOptions: {
+            s3Options: {
+              accessKeyId: env('AWS_ACCESS_KEY_ID'),
+              secretAccessKey: env('AWS_ACCESS_SECRET'),
+              region: env('AWS_REGION'),
+              params: {
+                Bucket: env('AWS_BUCKET_NAME'),
+              },
+            }
+          },
+          // These parameters could solve issues with ACL public-read access — see [this issue](https://github.com/strapi/strapi/issues/5868) for details
+          actionOptions: {
+            upload: {
+              ACL: null
+            },
+            uploadStream: {
+              ACL: null
+            },
+          }
+        },
+      }
+    });
+  ```
+
+  - push โปรเจกต์บนเครื่องขึ้น github
+  ```bash
+  git add .
+  git commit -m 'ข้อความ commit'
+  git push
+  ```
+
+  - clone โปรเจกต์ลงมายังเครื่อง EC2
+  ```bash
+  cd ~
+  git clone https://github.com/ชื่อในgithub/ชื่อrepository.git
+  ```
+
+4. ติดตั้ง package ลงโปรเจกต์ในเครื่อง EC2
+```bash
+cd ที่อยู่โปรเจกต์ในEC2
+yarn install
+NODE_ENV=production yarn run build
+```
+
+5. ติดตั้ง PM2 Runtime
+  - เริ่มการติดต้ง PM2
+  ```bash
+  cd ~
+  yarn install pm2@latest -g
+  ```
 
 
 ## ข้อมูลอ้างอิง
@@ -86,3 +196,4 @@ npm run develop
 [Strapi คืออะไร และทำไมถึงได้รับความนิยมในโลกของ Headless CMS](https://morphos.is/th/blog/what-is-strapi-and-how-it-will-dominate-the-world-of-headless-cms)
 [ลองเล่น Strapi — Headless CMS กัน](https://medium.com/i-gear-geek/%E0%B8%A5%E0%B8%AD%E0%B8%87%E0%B9%80%E0%B8%A5%E0%B9%88%E0%B8%99-strapi-headless-cms-%E0%B8%81%E0%B8%B1%E0%B8%99-f26ff53ac069)
 [Installing from CLI](https://docs.strapi.io/dev-docs/installation/cli)
+[Amazon AWS Deployment](https://docs.strapi.io/dev-docs/deployment/amazon-aws)
