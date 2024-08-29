@@ -190,6 +190,66 @@ NODE_ENV=production yarn run build
   yarn install pm2@latest -g
   ```
 
+6. แก้ไข ecosystem.config.js
+```bash
+cd ~
+pm2 init
+sudo nano ecosystem.config.js
+
+#โดยแก้ไขข้อมูลข้างในดังนี้
+module.exports = {
+  apps: [
+    {
+      name: 'ชื่อโปรเจกต์', 
+      cwd: '/home/ec2-user/เส้นทางไปยังโปรเจกต์', 
+      script: 'yarn', 
+      args: 'start', 
+      env: {
+        APP_KEYS: 'Key จาก .env ในโปรเจกต์ที่รันบนเครื่องของเรา',
+        API_TOKEN_SALT: 'Salt จาก .env ในโปรเจกต์ที่รันบนเครื่องของเรา',
+        ADMIN_JWT_SECRET: 'Admin Secret จาก .env ในโปรเจกต์ที่รันบนเครื่องของเรา',
+        JWT_SECRET: 'Secret จาก .env ในโปรเจกต์ที่รันบนเครื่องของเรา',
+        NODE_ENV: 'production',
+        DATABASE_CLIENT: 'sqlite',
+        DATABASE_FILENAME: '.tmp/data.db',
+        AWS_ACCESS_KEY_ID: 'aws-access-key-id',
+        AWS_ACCESS_SECRET: 'aws-access-secret', 
+        AWS_REGION: 'aws-region',
+        AWS_BUCKET_NAME: 'my-project-bucket-name'
+      },
+    },
+  ],
+};
+```
+
+7. ตั้งค่า security group ของ ec2 ในส่วน inbound ดังนี้
+  - Type: SSH, Protocol: TCP, Port Range 22, Source: ::/0
+  - Type: HTTP, Protocol: TCP, Port Range 80, Source: 0.0.0.0/0, ::/0
+  - Type: HTTPS, Protocol: TCP, Port Range 443, Source: 0.0.0.0/0, ::/0
+  - Custom TCP Rule, Protocol: TCP, Port Range 1337, Source: 0.0.0.0/0
+
+8. Start pm2 ให้เว็ปไซต์ทำงาน โดยจะเข้าถึงเว็ปไซต์ได้ที่ http://public-ipของec2:1337/
+```bash
+cd ~
+pm2 start ecosystem.config.js
+```
+
+9. ตั้งค่าให้ pm2 ทำงานทันทีเมื่อทำการเปิด ec2
+```bash
+cd ~
+pm2 startup systemd
+
+# หลังจากนั้น console จะพิมพ์คำสั่งมาให้ ทำการก็อปวางได้ เช่น
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u your-name --hp /home/your-name
+
+pm2 save
+```
+หลังจากนั้นให้ reboot 1 รอบด้วยคำสั่ง
+```bash
+sudo reboot
+```
+และลองเข้าถึงเว็ปไซต์ที่ http://public-ipของec2:1337/ โดยไม่ต้องใช้ pm2 startup systemd
+
 
 ## ข้อมูลอ้างอิง
 ข้อมูลบางส่วนได้รับการอ้างอิงจากบทความที่เกี่ยวข้อง:  
