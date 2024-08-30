@@ -284,11 +284,7 @@ module.exports = {
         JWT_SECRET: 'Secret จาก .env ในโปรเจกต์ที่รันบนเครื่องของเรา',
         NODE_ENV: 'production',
         DATABASE_CLIENT: 'sqlite',
-        DATABASE_FILENAME: '.tmp/data.db',
-        AWS_ACCESS_KEY_ID: 'aws-access-key-id',
-        AWS_ACCESS_SECRET: 'aws-access-secret', 
-        AWS_REGION: 'aws-region',
-        AWS_BUCKET_NAME: 'my-project-bucket-name'
+        DATABASE_FILENAME: '.tmp/data.db'
       },
     },
   ],
